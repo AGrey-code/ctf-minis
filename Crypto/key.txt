@@ -1,0 +1,5 @@
+xorkey
+
+recipe:
+From Hex
+XOR (UTF8)

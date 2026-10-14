@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Binary Exploitation Mini-Challenge: The Neighbor Variable</title>
+<style>
+:root{
+  --bg:#f3f6fa;--panel:#fff;--ink:#14213d;--muted:#55607a;--line:#d5dce8;
+  --accent:#1d4ed8;--ok:#116b3a;--okbg:#e2f5ea;--bad:#a4262c;--badbg:#fde8e8;
+  --warn:#6b4a00;--warnbg:#fff4d6;--code:#0f172a;--codeink:#e2e8f0;
+  --term-bg:#0b0f1a;--term-ink:#c9f7c9;--term-prompt:#7aa2ff;--term-dim:#6b7a99;
+  --cell-empty:#1b2440;--cell-fill:#2f6fed;--cell-overflow:#c43b3b;--cell-border:#3a4a78;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1524;--panel:#16203a;--ink:#e8edf7;--muted:#9aa7c4;--line:#2a3658;
+  --accent:#7aa2ff;--ok:#7be0a6;--okbg:#10331f;--bad:#ff9a9f;--badbg:#3a1618;
+  --warn:#ffe08a;--warnbg:#3a2e0a;--code:#080d1a;--codeink:#e2e8f0}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Times New Roman",serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:780px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 6px}
+h2{font-size:1.15rem;margin:0 0 8px}
+p{margin:0 0 12px;max-width:68ch}
+.sub{color:var(--muted)}
+.mission{border-left:4px solid var(--accent);background:var(--panel);padding:12px 16px;margin:18px 0;border-radius:0 6px 6px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:18px}
+.note{font:.88rem/1.5 system-ui,sans-serif;color:var(--muted)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace}
+pre{background:var(--code);color:var(--codeink);padding:14px;border-radius:6px;overflow-x:auto;
+  font:.92rem/1.55 ui-monospace,Menlo,Consolas,monospace;margin:8px 0 0;tab-size:4}
+pre .cm{color:#8fa3c7}
+pre .hl{color:#ffb4b4}
+
+/* Terminal */
+.term{background:var(--term-bg);color:var(--term-ink);border-radius:8px;padding:14px;
+  font:.92rem/1.5 ui-monospace,Menlo,Consolas,monospace;overflow-x:auto}
+.term .line{white-space:pre-wrap;word-break:break-word;margin:0 0 2px}
+.term .out{color:var(--term-ink)}
+.term .sys{color:var(--term-dim)}
+.term .prompt{color:var(--term-prompt)}
+.term-inputrow{display:flex;align-items:center;gap:6px;margin-top:4px}
+.term-inputrow .prompt{flex:none}
+.term-inputrow input{flex:1;background:transparent;border:none;color:var(--term-ink);
+  font:inherit;outline:none;caret-color:var(--term-ink)}
+.term-help{margin-top:10px}
+
+/* Stack diagram */
+.stackwrap{margin-top:14px}
+.stackrow{display:flex;gap:2px;flex-wrap:wrap;align-items:flex-end}
+.cell{width:30px;height:38px;border:1px solid var(--cell-border);border-radius:3px;
+  display:flex;align-items:center;justify-content:center;font:.72rem ui-monospace,Menlo,Consolas,monospace;
+  background:var(--cell-empty);color:var(--term-ink);flex:none;transition:background .15s}
+.cell.fill{background:var(--cell-fill)}
+.cell.overflow{background:var(--cell-overflow)}
+.celllabels{display:flex;gap:2px;margin-top:4px}
+.celllabel{width:30px;text-align:center;font:.68rem system-ui,sans-serif;color:var(--muted);flex:none}
+.stacklegend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font:.82rem system-ui,sans-serif;color:var(--muted)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.authval{margin-top:10px;font:.92rem ui-monospace,Menlo,Consolas,monospace}
+.authval b{color:var(--ink)}
+
+label{display:block;font:600 .9rem system-ui,sans-serif;margin:0 0 4px}
+input[type=text]{width:100%;font:1rem ui-monospace,Menlo,Consolas,monospace;padding:10px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:600 1rem system-ui,sans-serif;padding:10px 18px;border-radius:6px;border:0;
+  background:var(--accent);color:var(--panel);cursor:pointer;margin-top:12px}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:0}
+button.small{font-size:.85rem;padding:6px 12px;margin-top:8px}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.result{margin-top:14px;padding:12px 14px;border-radius:6px;font-family:system-ui,sans-serif}
+.result.ok{background:var(--okbg);color:var(--ok)}
+.result.bad{background:var(--badbg);color:var(--bad)}
+.hint{display:none;margin-top:12px;font-family:system-ui,sans-serif}
+.hint.show{display:block}
+.hint.last{background:var(--warnbg);color:var(--warn);padding:12px 14px;border-radius:6px}
+.hint.last pre{color:var(--codeink)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>The Neighbor Variable</h1>
+  <p class="sub">Binary exploitation mini-challenge · beginner · about 5 minutes</p>
+
+  <div class="mission">
+    <h2>Your mission</h2>
+    <p>Below is a simulated terminal connected to a tiny login program. The program's source code is shown too, so you can read exactly how it works. Find input that makes it print the flag, which looks like <code>CTF{...}</code>.</p>
+    <p class="note" style="margin:0">Nothing to install. The terminal is a simulation that runs in your browser.</p>
+  </div>
+
+  <div class="card">
+    <h2>The source code</h2>
+<pre><span class="cm">// login.c</span>
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main() {
+    char buffer[8];        <span class="cm">// holds 8 characters</span>
+    int  authorized = 0;   <span class="hl">// sits right after buffer in memory</span>
+
+    printf("=== Login System v1.0 ===\n");
+    printf("Enter your name: ");
+    gets(buffer);           <span class="cm">// reads input with NO length check</span>
+
+    if (authorized) {
+        printf("Welcome, authorized user!\n");
+        <span class="cm">// ... prints the flag ...</span>
+    } else {
+        printf("Access denied. (authorized = %d)\n", authorized);
+    }
+    return 0;
+}</pre>
+    <p class="note" style="margin-top:10px"><code>gets()</code> copies input into <code>buffer</code> with no limit. In memory, the <code>authorized</code> variable happens to sit immediately after <code>buffer</code>. If your input is longer than 8 characters, the extra characters don't fit, so they spill into whatever comes next.</p>
+  </div>
+
+  <div class="card">
+    <h2>Terminal</h2>
+    <p class="note">Type <code>help</code> to see available commands. Try <code>ls</code>, <code>cat login.c</code>, and <code>./login</code> to start the program.</p>
+    <div class="term" id="term" tabindex="-1">
+      <div id="termLog"></div>
+      <div class="term-inputrow">
+        <span class="prompt" id="termPromptLabel">$</span>
+        <input id="termInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input">
+      </div>
+    </div>
+
+    <div class="stackwrap hidden" id="stackwrap">
+      <h2 style="margin-top:18px">Live memory view</h2>
+      <p class="note">Each box is one byte. The first 8 boxes are <code>buffer</code>. The next 4 are the bytes that make up <code>authorized</code>. Watch what happens as you type at the name prompt.</p>
+      <div class="stackrow" id="stackCells"></div>
+      <div class="celllabels" id="stackLabels"></div>
+      <div class="stacklegend">
+        <span><span class="swatch" style="background:var(--cell-empty)"></span>empty</span>
+        <span><span class="swatch" style="background:var(--cell-fill)"></span>buffer (intended)</span>
+        <span><span class="swatch" style="background:var(--cell-overflow)"></span>overflow (unintended)</span>
+      </div>
+      <div class="authval">authorized = <b id="authVal">0</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Check your flag</h2>
+    <label for="f">Flag</label>
+    <input id="f" type="text" placeholder="CTF{...}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="check" type="button">Check flag</button>
+    <div id="result" class="result hidden" role="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stuck?</h2>
+    <div class="row">
+      <button id="hintBtn" type="button" class="ghost">Show a hint</button>
+      <span id="hintCount" class="note"></span>
+    </div>
+    <div id="h1" class="hint"><strong>Hint 1.</strong> <code>buffer</code> is declared as 8 characters, but <code>gets()</code> never checks how much you type. What happens if you type more than 8 characters?</div>
+    <div id="h2" class="hint"><strong>Hint 2.</strong> In memory, <code>authorized</code> sits right after <code>buffer</code>, with nothing in between. Characters typed past position 8 land directly on top of <code>authorized</code>'s bytes.</div>
+    <div id="h3" class="hint"><strong>Hint 3.</strong> <code>authorized</code> only needs to become non-zero, not any specific value. Run <code>./login</code>, and at the "Enter your name" prompt, type a name longer than 8 characters. Watch the memory view to see the overflow happen live.</div>
+    <div id="h4" class="hint last"><strong>Last hint: the answer.</strong> Only open this if you have tried the earlier hints.
+      <p style="margin-top:6px">At the terminal prompt, run:</p>
+      <pre>./login</pre>
+      <p>Then, at the "Enter your name:" prompt, type a name of more than 8 characters, for example:</p>
+      <pre>AAAAAAAAAAAAA</pre>
+      <p style="margin-bottom:0">The first character past position 8 overwrites a byte of <code>authorized</code> with a non-zero value, so the check <code>if (authorized)</code> passes and the program prints the flag.</p>
+    </div>
+  </div>
+
+  <div class="card hidden" id="solved">
+    <h2>Why this worked</h2>
+    <p>This is a classic stack buffer overflow. <code>buffer</code> and <code>authorized</code> are neighbors in memory, and <code>gets()</code> has no idea where <code>buffer</code> is supposed to end. Writing past the end of one variable overwrites whatever comes next. Here that happened to be a security check, which is exactly the kind of bug that real exploits rely on, just usually overwriting something more powerful, like a saved return address.</p>
+    <p style="margin-bottom:0">The fix: use a bounded function like <code>fgets(buffer, sizeof(buffer), stdin)</code> instead of <code>gets()</code>, which was so dangerous it was removed from the C standard entirely.</p>
+  </div>
+
+  <p class="note">This page runs entirely in your browser. There is no real compiled program and nothing you type is sent anywhere. The memory layout shown is simplified for teaching; real compilers may add padding or reorder variables. Next steps: picoCTF binary exploitation challenges, pwn.college, and OverTheWire's Narnia wargame.</p>
+</main>
+<script src="bin.js"></script>
+</body>
+</html>

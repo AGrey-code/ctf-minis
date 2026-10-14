@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OSINT Mini-Challenge: Where Was This Taken?</title>
+<style>
+:root{
+  --bg:#f3f6fa;--panel:#fff;--ink:#14213d;--muted:#55607a;--line:#d5dce8;
+  --accent:#1d4ed8;--ok:#116b3a;--okbg:#e2f5ea;--bad:#a4262c;--badbg:#fde8e8;
+  --warn:#6b4a00;--warnbg:#fff4d6;--code:#0f172a;--codeink:#e2e8f0;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1524;--panel:#16203a;--ink:#e8edf7;--muted:#9aa7c4;--line:#2a3658;
+  --accent:#7aa2ff;--ok:#7be0a6;--okbg:#10331f;--bad:#ff9a9f;--badbg:#3a1618;
+  --warn:#ffe08a;--warnbg:#3a2e0a;--code:#080d1a;--codeink:#e2e8f0}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Times New Roman",serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:720px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 6px}
+h2{font-size:1.15rem;margin:0 0 8px}
+p{margin:0 0 12px;max-width:68ch}
+.sub{color:var(--muted)}
+.mission{border-left:4px solid var(--accent);background:var(--panel);padding:12px 16px;margin:18px 0;border-radius:0 6px 6px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:18px}
+.note{font:.88rem/1.5 system-ui,sans-serif;color:var(--muted)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+.photowrap{text-align:center}
+.photowrap img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);display:block;margin:0 auto}
+.photo-fallback{padding:40px 16px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font:.9rem system-ui,sans-serif}
+
+label{display:block;font:600 .9rem system-ui,sans-serif;margin:0 0 4px}
+input[type=text]{width:100%;font:1rem ui-monospace,Menlo,Consolas,monospace;padding:10px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:600 1rem system-ui,sans-serif;padding:10px 18px;border-radius:6px;border:0;
+  background:var(--accent);color:var(--panel);cursor:pointer;margin-top:12px}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:0}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.result{margin-top:14px;padding:12px 14px;border-radius:6px;font-family:system-ui,sans-serif}
+.result.ok{background:var(--okbg);color:var(--ok)}
+.result.bad{background:var(--badbg);color:var(--bad)}
+.hint{display:none;margin-top:12px;font-family:system-ui,sans-serif}
+.hint.show{display:block}
+.hidden{display:none}
+.formatbox{background:var(--code);color:var(--codeink);padding:12px 14px;border-radius:6px;font:.92rem ui-monospace,Menlo,Consolas,monospace;margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Where Was This Taken?</h1>
+  <p class="sub">OSINT mini-challenge · beginner · about 5 minutes</p>
+
+  <div class="mission">
+    <h2>Your mission</h2>
+    <p>The photo below was taken at a real, public location. Use whatever clues it gives you, text, signage, architecture, surroundings, to work out exactly where it is.</p>
+    <p style="margin:0">The flag is the full street address, written like this:</p>
+    <div class="formatbox">CTF{StreetNumber_Direction_StreetName_StreetType_City_State_ZIP}</div>
+    <p class="note" style="margin:8px 0 0">Underscores instead of spaces, no commas or periods, abbreviate the street direction and street type the way the postal service would (e.g. <code>W</code> for West, <code>St</code> for Street, <code>Ave</code> for Avenue), and use the two-letter state code. Not every address has a direction word, so skip that part if yours doesn't need one.</p>
+  </div>
+
+  <div class="card">
+    <h2>The photo</h2>
+    <div class="photowrap">
+      <img src="location.png" alt="Mystery location to geolocate"
+           onerror="this.style.display='none'; document.getElementById('photoFallback').style.display='block';">
+      <div class="photo-fallback hidden" id="photoFallback">
+        Image not found. Add your photo to this folder as <code>location.jpg</code> (or edit the <code>src</code> in index.html to match your filename).
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Check your flag</h2>
+    <label for="f">Flag</label>
+    <input id="f" type="text" placeholder="CTF{...}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="check" type="button">Check flag</button>
+    <div id="result" class="result hidden" role="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stuck?</h2>
+    <div class="row">
+      <button id="hintBtn" type="button" class="ghost">Show a hint</button>
+      <span id="hintCount" class="note"></span>
+    </div>
+    <div id="h1" class="hint"><strong>Hint 1.</strong> The location is in Merced, CA.</div>
+    <div id="h2" class="hint"><strong>Hint 2.</strong> The location is in Downtown Merced.</div>
+    <p class="note" style="margin-top:10px">Once you know the neighborhood, use Google Maps Street View to find the exact building that matches the photo, then read off its street address.</p>
+  </div>
+
+  <div class="card hidden" id="solved">
+    <h2>Why this worked</h2>
+    <p style="margin-bottom:0">This is geolocation, one of the core OSINT skills. Real investigations work the same way: notice small details, turn each one into a search, build a candidate location, and verify it against a second source like satellite or street-level imagery before trusting it.</p>
+  </div>
+
+  <p class="note">This page runs entirely in your browser and nothing you type is sent anywhere. Next steps: Trace Labs Search Party CTF, GeoGuessr, and the OSINT rooms on TryHackMe.</p>
+</main>
+<script src="osint.js"></script>
+</body>
+</html>

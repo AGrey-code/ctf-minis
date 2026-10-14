@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reverse Engineering Mini-Challenge: Rebuild the Input</title>
+<style>
+:root{--bg:#f3f6fa;--panel:#fff;--ink:#14213d;--muted:#55607a;--line:#d5dce8;--accent:#1d4ed8;--ok:#116b3a;--okbg:#e2f5ea;--bad:#a4262c;--badbg:#fde8e8;--warn:#6b4a00;--warnbg:#fff4d6;--code:#0f172a;--codeink:#e2e8f0}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1524;--panel:#16203a;--ink:#e8edf7;--muted:#9aa7c4;--line:#2a3658;--accent:#7aa2ff;--ok:#7be0a6;--okbg:#10331f;--bad:#ff9a9f;--badbg:#3a1618;--warn:#ffe08a;--warnbg:#3a2e0a;--code:#080d1a;--codeink:#e2e8f0}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Times New Roman",serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+main{max-width:760px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 6px}
+h2{font-size:1.15rem;margin:0 0 8px}
+p{margin:0 0 12px;max-width:68ch}
+.sub{color:var(--muted)}
+.mission{border-left:4px solid var(--accent);background:var(--panel);padding:12px 16px;margin:18px 0;border-radius:0 6px 6px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:18px}
+label{display:block;font:600 .9rem system-ui,sans-serif;margin:0 0 4px}
+input[type=text]{width:100%;font:1rem ui-monospace,Menlo,Consolas,monospace;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:600 1rem system-ui,sans-serif;padding:10px 18px;border-radius:6px;border:0;background:var(--accent);color:var(--panel);cursor:pointer;margin-top:12px}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:0}
+button.small{font-size:.85rem;padding:6px 12px;margin-top:8px}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+pre{background:var(--code);color:var(--codeink);padding:14px;border-radius:6px;overflow-x:auto;font:.92rem/1.55 ui-monospace,Menlo,Consolas,monospace;margin:8px 0 0;tab-size:4}
+pre.wrap{white-space:pre-wrap;word-break:break-word}
+.cm{color:#8fa3c7}
+.result{margin-top:14px;padding:12px 14px;border-radius:6px;font-family:system-ui,sans-serif}
+.result.ok{background:var(--okbg);color:var(--ok)}
+.result.bad{background:var(--badbg);color:var(--bad)}
+.hint{display:none;margin-top:12px;font-family:system-ui,sans-serif}
+.hint.show{display:block}
+.hint.last{background:var(--warnbg);color:var(--warn);padding:12px 14px;border-radius:6px}
+.hint.last pre{color:var(--codeink)}
+.note{font:.88rem/1.5 system-ui,sans-serif;color:var(--muted)}
+.hidden{display:none}
+code{font-family:ui-monospace,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+<main>
+  <h1>Rebuild the Input</h1>
+  <p class="sub">Reverse engineering mini-challenge · beginner · about 5 minutes · Python required</p>
+
+  <div class="mission">
+    <h2>Your mission</h2>
+    <p>The C++ program below took a secret flag, scrambled it, and printed a list of numbers. You can't run it backward, but you can read it. Write a Python script that undoes what the program did and recovers the flag.</p>
+    <p class="note" style="margin:0">You need somewhere to run Python. Any online interpreter works, such as the shell at python.org or an online notebook. Nothing to install or download.</p>
+  </div>
+
+  <div class="card">
+    <h2>The source code</h2>
+<pre><span class="cm">// scramble.cpp</span>
+#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+using namespace std;
+
+int main() {
+    string flag = "????????";   <span class="cm">// the real flag was here</span>
+    vector&lt;int&gt; out;
+
+    for (size_t i = 0; i &lt; flag.size(); i++) {
+        int c = flag[i];
+        c = c ^ (i + 7);
+        c = c + (i % 4) * 3;
+        out.push_back(c);
+    }
+
+    reverse(out.begin(), out.end());
+
+    for (int v : out) {
+        cout &lt;&lt; v &lt;&lt; " ";
+    }
+    cout &lt;&lt; endl;
+    return 0;
+}</pre>
+    <p class="note" style="margin-top:10px">Useful facts: <code>^</code> is XOR, <code>%</code> is the remainder after division, and <code>flag[i]</code> gives the character's number (its ASCII code). Characters are numbers underneath, which is why the math works.</p>
+  </div>
+
+  <div class="card">
+    <h2>The program's output</h2>
+    <pre class="wrap" id="out">84 24 39 35 122 73 31 26 83 23 74 22 79 111 119 47 70 105 120 102 74 115 46 71 90 70 73 75 70 97 71 116 66 121 122 85 95 68</pre>
+    <button type="button" class="ghost small" id="copyOut">Copy numbers</button>
+  </div>
+
+  <div class="card">
+    <h2>Check your flag</h2>
+    <label for="f">Flag</label>
+    <input id="f" type="text" placeholder="CTF{...}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="check" type="button">Check flag</button>
+    <div id="result" class="result hidden" role="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stuck?</h2>
+    <div class="row">
+      <button id="hintBtn" type="button" class="ghost">Show a hint</button>
+      <span id="hintCount" class="note"></span>
+    </div>
+    <div id="h1" class="hint"><strong>Hint 1.</strong> Read the loop one line at a time and say what happens to a single character. There are three steps after the loop starts: XOR with a number that depends on <code>i</code>, add a number that depends on <code>i</code>, then (after the loop) reverse the whole list.</div>
+    <div id="h2" class="hint"><strong>Hint 2.</strong> To undo a recipe, undo the steps in the opposite order, using opposite operations. Un-reverse the list first, then subtract instead of add, then XOR again (XOR undoes itself). Use <code>i</code> as the position in the un-reversed list, starting at 0.</div>
+    <div id="h3" class="hint"><strong>Hint 3.</strong> Fill in the blanks:
+<pre>nums = [84, 24, 39]   # paste all the numbers from the output
+nums = nums[::-1]      # undo the reverse
+flag = ""
+for i, n in enumerate(nums):
+    n = ____            # undo the addition
+    n = ____            # undo the XOR
+    flag += chr(n)
+print(flag)</pre></div>
+    <div id="h4" class="hint last"><strong>Last hint: the full solution.</strong> Only open this if you have tried the earlier hints.
+<pre id="solution">nums = [84, 24, 39, 35, 122, 73, 31, 26, 83, 23, 74, 22, 79, 111,
+        119, 47, 70, 105, 120, 102, 74, 115, 46, 71, 90, 70, 73, 75,
+        70, 97, 71, 116, 66, 121, 122, 85, 95, 68]
+
+nums = nums[::-1]            # undo reverse()
+
+flag = ""
+for i, n in enumerate(nums):
+    n = n - (i % 4) * 3      # undo the addition
+    n = n ^ (i + 7)          # undo the XOR
+    flag += chr(n)           # number back to character
+
+print(flag)</pre>
+      <button type="button" class="ghost small" id="copySol">Copy solution</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="solved">
+    <h2>Why this worked</h2>
+    <p>You never ran the C++ program. You read it, worked out each step, and rebuilt the input by running the steps backward. That is the core move of reverse engineering. Real programs hide their logic in compiled machine code instead of readable source, and tools like Ghidra turn it back into something you can read, but the thinking is the same.</p>
+  </div>
+
+  <p class="note">This page runs entirely in your browser and nothing you type is sent anywhere. Next steps: picoCTF reverse engineering challenges, Crackmes.one, and the reversing rooms on TryHackMe.</p>
+</main>
+
+<script src="rev.js"></script>
+</body>
+</html>

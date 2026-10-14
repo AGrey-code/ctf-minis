@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forensics Mini-Challenge: Patient Zero</title>
+<style>
+:root{
+  --bg:#f3f6fa;--panel:#fff;--ink:#14213d;--muted:#55607a;--line:#d5dce8;
+  --accent:#1d4ed8;--ok:#116b3a;--okbg:#e2f5ea;--bad:#a4262c;--badbg:#fde8e8;
+  --warn:#6b4a00;--warnbg:#fff4d6;--code:#0f172a;--codeink:#e2e8f0;
+  --term-bg:#0b0f1a;--term-ink:#c9f7c9;--term-prompt:#7aa2ff;--term-dim:#6b7a99;--term-mal:#ff8a8a;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1524;--panel:#16203a;--ink:#e8edf7;--muted:#9aa7c4;--line:#2a3658;
+  --accent:#7aa2ff;--ok:#7be0a6;--okbg:#10331f;--bad:#ff9a9f;--badbg:#3a1618;
+  --warn:#ffe08a;--warnbg:#3a2e0a;--code:#080d1a;--codeink:#e2e8f0}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Times New Roman",serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:800px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 6px}
+h2{font-size:1.15rem;margin:0 0 8px}
+p{margin:0 0 12px;max-width:70ch}
+.sub{color:var(--muted)}
+.mission{border-left:4px solid var(--accent);background:var(--panel);padding:12px 16px;margin:18px 0;border-radius:0 6px 6px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:18px}
+.note{font:.88rem/1.5 system-ui,sans-serif;color:var(--muted)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+/* Terminal */
+.term{background:var(--term-bg);color:var(--term-ink);border-radius:8px;padding:14px;
+  font:.88rem/1.5 ui-monospace,Menlo,Consolas,monospace;overflow-x:auto;max-height:420px;overflow-y:auto}
+.term .line{white-space:pre;margin:0 0 2px}
+.term .out{color:var(--term-ink)}
+.term .sys{color:var(--term-dim)}
+.term .prompt{color:var(--term-prompt)}
+.term .bad{color:#ff9a9f}
+.term .match{background:var(--term-mal);color:#3a0a0a;border-radius:2px;padding:0 1px}
+.term-inputrow{display:flex;align-items:center;gap:6px;margin-top:4px;position:sticky;bottom:0;background:var(--term-bg)}
+.term-inputrow .prompt{flex:none}
+.term-inputrow input{flex:1;background:transparent;border:none;color:var(--term-ink);
+  font:inherit;outline:none;caret-color:var(--term-ink)}
+
+label{display:block;font:600 .9rem system-ui,sans-serif;margin:0 0 4px}
+input[type=text]{width:100%;font:1rem ui-monospace,Menlo,Consolas,monospace;padding:10px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:600 1rem system-ui,sans-serif;padding:10px 18px;border-radius:6px;border:0;
+  background:var(--accent);color:var(--panel);cursor:pointer;margin-top:12px}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:0}
+button.small{font-size:.85rem;padding:6px 12px;margin-top:8px}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.result{margin-top:14px;padding:12px 14px;border-radius:6px;font-family:system-ui,sans-serif}
+.result.ok{background:var(--okbg);color:var(--ok)}
+.result.bad{background:var(--badbg);color:var(--bad)}
+.hint{display:none;margin-top:12px;font-family:system-ui,sans-serif}
+.hint.show{display:block}
+.hint.last{background:var(--warnbg);color:var(--warn);padding:12px 14px;border-radius:6px}
+.hint.last pre{color:var(--codeink);background:var(--code);padding:10px;border-radius:6px;overflow-x:auto;font:.85rem ui-monospace,Menlo,Consolas,monospace}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Patient Zero</h1>
+  <p class="sub">Forensics mini-challenge · beginner · about 5 minutes</p>
+
+  <div class="mission">
+    <h2>Your mission</h2>
+    <p>A workstation was compromised. Security software captured a 204-line log of process activity around the time of the incident. Somewhere in it, one process ran a malicious executable. Find the <strong>PID</strong> (process ID) responsible.</p>
+    <p>Most processes in a log like this run once and disappear. The process you're after was busy: it shows up on far more lines than an ordinary one-off process. Figure out how to count that, narrow down the top candidates, then look closely at what each one actually did.</p>
+    <p style="margin:0">The flag is <code>CTF{PID}</code>, where <code>PID</code> is that process's ID number. For example, if the PID were 1234, the flag would be <code>CTF{1234}</code>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Terminal</h2>
+    <p class="note">Type <code>help</code> to see available commands, including pipes with <code>|</code>, just like a real shell. Start with <code>ls</code>.</p>
+    <div class="term" id="term" tabindex="-1">
+      <div id="termLog"></div>
+      <div class="term-inputrow">
+        <span class="prompt">investigator@forensics:~$</span>
+        <input id="termInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Check your flag</h2>
+    <label for="f">Flag</label>
+    <input id="f" type="text" placeholder="CTF{...}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="check" type="button">Check flag</button>
+    <div id="result" class="result hidden" role="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stuck?</h2>
+    <div class="row">
+      <button id="hintBtn" type="button" class="ghost">Show a hint</button>
+      <span id="hintCount" class="note"></span>
+    </div>
+    <div id="h1" class="hint"><strong>Hint 1.</strong> Run <code>ls</code>, then <code>cat system.log</code> to see the format. Each line has a PID, a parent PID (PPID), a user, a full program path, and a status. 204 lines is too many to read one by one. You need to count how often each PID appears, and find the one that stands out.</div>
+    <div id="h2" class="hint"><strong>Hint 2.</strong> This terminal supports piping with <code>|</code>, just like a real shell. There's also a helper command, <code>pids</code>, that turns each log line into just its PID. Try: <code>cat system.log | pids | sort | uniq -c</code>. Notice that <code>uniq -c</code> only counts matches that are next to each other, which is why you sort first.</div>
+    <div id="h3" class="hint"><strong>Hint 3.</strong> That gives you a count for every PID, but it's still a long list. Sort it again, this time by the count itself, and keep only the top few: <code>cat system.log | pids | sort | uniq -c | sort -nr | head</code>. Then inspect each of the top PIDs one at a time with <code>grep &lt;PID&gt; system.log</code>. Most will turn out to be ordinary repeated background activity.</div>
+    <div id="h4" class="hint last"><strong>Last hint: the answer.</strong> Only open this if you have tried the earlier hints.
+      <p style="margin-top:6px">Count and rank PIDs by frequency:</p>
+      <pre>cat system.log | pids | sort | uniq -c | sort -nr | head</pre>
+      <p>PID <code>6650</code> comes out on top, appearing 6 times, well above the next busiest PIDs (4 times). Inspect its full history:</p>
+      <pre>grep 6650 system.log</pre>
+      <p>The first five lines look like ordinary <code>svchost.exe</code> activity. The sixth does not:</p>
+      <pre id="answerLine">[2024-03-15 14:17:30] PID=6650 PPID=8359 USER=agupta     PROC=C:\Users\agupta\AppData\Local\Temp\suspicious_evil_virus.exe STATUS=BLOCKED</pre>
+      <p style="margin-bottom:0">The flag is <code>CTF{6650}</code>.</p>
+    </div>
+  </div>
+
+  <div class="card hidden" id="solved">
+    <h2>Why this worked</h2>
+    <p>This is log analysis, one of the most common forensics tasks. In a real log, an attacker's process is often doing more than a normal one, probing, downloading, waiting, trying again, so it leaves more traces. Counting how often each identifier shows up, and looking closely at the busiest ones, is a real triage technique investigators use on logs far too long to read line by line.</p>
+    <p style="margin-bottom:0">Notice the log also shows <code>PPID=8359</code>, the parent process that launched the malicious executable. In a real investigation, that's the next thread to pull: what process is 8359, and how did it get onto this machine?</p>
+  </div>
+
+  <p class="note">This page runs entirely in your browser. The log is synthetic, built for this exercise, and nothing you type is sent anywhere. Next steps: picoCTF forensics challenges, the Blue Team Labs Online log-analysis rooms, and CyberDefenders.</p>
+</main>
+<script src="foren.js"></script>
+</body>
+</html>
